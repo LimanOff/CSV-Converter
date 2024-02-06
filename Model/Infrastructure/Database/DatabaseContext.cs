@@ -89,7 +89,9 @@ namespace CSV_Converter.Model.Infrastructure.Database
                         continue;
 
                     Type inspectClassType = FindClassInGenericProperties(nameOfClass);
-                    List<PropertyInfo> inspectClassProperties = inspectClassType.GetProperties().ToList();
+                    List<PropertyInfo> inspectClassProperties = inspectClassType.GetProperties()
+                                                                                    .Where(prop => prop.CustomAttributes.Count() == 0)
+                                                                                    .ToList();
 
                     List<string> lines = _parser.ReadFileLines($"{Program.RootFolder}/Model/Infrastructure//Database/Data/{fileNameWithExtension}", fileNameWithExtension);
 
