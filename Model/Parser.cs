@@ -1,7 +1,10 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Windows;
-using System.Windows.Forms;
 
 namespace CSV_Converter.Model.Infrastructure.ParserLogic
 {
@@ -34,11 +37,12 @@ namespace CSV_Converter.Model.Infrastructure.ParserLogic
                 try
                 {
                     lines = File.ReadAllLines(filePath, Encoding.UTF8).Select(x => x.Trim()).ToList();
+                    exception = null;
                 }
                 catch (Exception exc)
                 {
                     exception = exc;
-                    MessageBox.Show($"Невозможно прочесть файл {fileNameWithExtension}, пока он открыт. Для дальнейшей работы закройте файл {fileNameWithExtension}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show($"Невозможно прочесть файл {fileNameWithExtension}, пока он открыт. Для дальнейшей работы закройте файл {fileNameWithExtension}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             } while (exception != null);
             string firstLine = lines[0];
@@ -68,7 +72,14 @@ namespace CSV_Converter.Model.Infrastructure.ParserLogic
 
                 object value;
 
-                ConvertColumnValue(columns[index], property.PropertyType, out value);
+                if (property.PropertyType.GetGenericArguments().Length == 0)
+                {
+                    ConvertColumnValue(columns[index], property.PropertyType, out value);
+                }
+                else
+                {
+                    ConvertColumnValue(columns[index], UtilityHelper.GetTypeInGenericClass(property.PropertyType), out value);
+                }
                 property.SetValue(objectForFilling, value);
                 index++;
             }

@@ -1,7 +1,14 @@
 ﻿using CSV_Converter.Model.Infrastructure.Database.Data;
 using CSV_Converter.Model.Infrastructure.ParserLogic;
+
 using Microsoft.EntityFrameworkCore;
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Windows;
 
 namespace CSV_Converter.Model.Infrastructure.Database
 {
@@ -17,23 +24,38 @@ namespace CSV_Converter.Model.Infrastructure.Database
         public DbSet<Direction> Directions { get; set; }
         public DbSet<Event> Events { get; set; }
         public DbSet<Country> Countries { get; set; }
+        public DbSet<Activity> Activities { get; set; }
+
         public DbSet<Jury> Juries { get; set; }
         public DbSet<Organizer> Organizers { get; set; }
         public DbSet<Moderator> Moderators { get; set; }
-        public DbSet<Activity> Activities { get; set; }
         public DbSet<Participant> Participants { get; set; }
 
         public DatabaseContext()
         {
             Database.EnsureCreated();
 
-            _dbContextProperties = GetType()
-                                        .GetProperties()
-                                        .ToList();
-            _parser = new Parser();
+            InitDatabase();
+        }
 
+        private void InitDatabase()
+        {
+            if (MessageBox.Show("Пересоздать базу данных?", "Вопрос", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            {
+                Database.EnsureDeleted();
+                Database.EnsureCreated();
 
-            PopulateDatabase($"{Program.RootFolder}/Model/Infrastructure/Database/Data/");
+                if (MessageBox.Show("База данных пуста.\nЗаполнить базу первичными данными?", "Вопрос", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    _dbContextProperties = GetType()
+                                            .GetProperties()
+                                            .ToList();
+                    _parser = new Parser();
+                    PopulateDatabase($"{Program.RootFolder}/Model/Infrastructure/Database/Data/");
+                }
+            }
+
+            MessageBox.Show("База данных готова к использованию", "Результат", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -57,9 +79,9 @@ namespace CSV_Converter.Model.Infrastructure.Database
         }
 
         /// <summary>
-        /// Заполняет базу данных ресурсами из папки
+        /// Заполнить базу данных данными из файлов формата csv
         /// </summary>
-        /// <param name="pathToFolderWithFiles">Путь до папки с данными</param>
+        /// <param name="pathToFolderWithFiles">Путь до файлов формата csv</param>
         private void PopulateDatabase(string pathToFolderWithFiles)
         {
             List<string> files = Directory.GetFiles(pathToFolderWithFiles).ToList();
@@ -77,7 +99,7 @@ namespace CSV_Converter.Model.Infrastructure.Database
                 "Activity"
             };
 
-            foreach (string elementOfSequence in sequenceOfParsing)
+            foreach (string element in sequenceOfParsing)
             {
                 foreach (string file in files)
                 {
@@ -85,22 +107,22 @@ namespace CSV_Converter.Model.Infrastructure.Database
                     string fileNameWithExtension = Path.GetFileName(file);
                     string nameOfClass = fileNameWithoutExtension.Replace("_import", "");
 
-                    if (nameOfClass != elementOfSequence)
+                    if (nameOfClass != element)
                         continue;
 
                     Type inspectClassType = FindClassInGenericProperties(nameOfClass);
                     List<PropertyInfo> inspectClassProperties = inspectClassType.GetProperties()
-                                                                                    .Where(prop => prop.CustomAttributes.Count() == 0)
-                                                                                    .ToList();
+                                                                                .Where(prop => prop.CustomAttributes.Count() == 0)
+                                                                                .ToList();
 
                     List<string> lines = _parser.ReadFileLines($"{Program.RootFolder}/Model/Infrastructure//Database/Data/{fileNameWithExtension}", fileNameWithExtension);
 
                     foreach (string line in lines)
                     {
-                        object? inspectClassObject = Activator.CreateInstance(inspectClassType);
+                        object inspectClassObject = Activator.CreateInstance(inspectClassType);
                         inspectClassObject = _parser.ProcessLine(line, inspectClassProperties, inspectClassObject);
 
-                        MethodInfo? method = GetType().
+                        MethodInfo method = GetType().
                                         GetMethod("AddPropertyToDbSet", BindingFlags.NonPublic | BindingFlags.Instance);
 
                         method.MakeGenericMethod(inspectClassType)
@@ -110,7 +132,7 @@ namespace CSV_Converter.Model.Infrastructure.Database
                 }
             }
         }
-        
+
         /// <summary>
         /// Добавляет объект в нужное DbSet свойство DatabaseContext
         /// </summary>
@@ -121,10 +143,10 @@ namespace CSV_Converter.Model.Infrastructure.Database
             Type type = inspectClassObject.GetType();
             Type openType = typeof(DbSet<>);
             Type genericType = openType.MakeGenericType(type);
-            
+
             foreach (PropertyInfo property in _dbContextProperties)
             {
-                if(property.PropertyType == genericType)
+                if (property.PropertyType == genericType)
                 {
                     DbSet<T> instance = (DbSet<T>)property.GetValue(this);
                     instance.GetType().GetMethod("Add").Invoke(instance, new object[] { inspectClassObject });
@@ -149,6 +171,33 @@ namespace CSV_Converter.Model.Infrastructure.Database
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Находит пользователя по Id и Password, а затем возвращает его роль
+        /// </summary>
+        /// <param name="id">Id</param>
+        /// <param name="password">Пароль</param>
+        /// <returns>Роль пользователя в системе</returns>
+        public string FindUserRoleByPasswordAndId(int id, string password)
+        {
+            if (Juries.FirstOrDefault(x => x.Id == id && x.Password == password) != null)
+            {
+                return "Jury";
+            }
+            if (Organizers.FirstOrDefault(x => x.Id == id && x.Password == password) != null)
+            {
+                return "Organizer";
+            }
+            if (Moderators.FirstOrDefault(x => x.Id == id && x.Password == password) != null)
+            {
+                return "Moderator";
+            }
+            if (Participants.FirstOrDefault(x => x.Id == id && x.Password == password) != null)
+            {
+                return "Participant";
+            }
+            return "none";
         }
     }
 }

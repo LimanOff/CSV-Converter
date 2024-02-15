@@ -17,7 +17,7 @@ namespace CSV_Converter.Model.Infrastructure.Database.Data
         public int Id_Country { get; set; }
         public string Phone { get; set; }
         public int Id_Direction { get; set; }
-        public int Id_Event { get; set; }
+        public int? Id_Event { get; set; }
         public string Password { get; set; }
         public string Photo_Link { get; set; }
 

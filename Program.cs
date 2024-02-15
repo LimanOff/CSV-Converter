@@ -1,5 +1,7 @@
 ﻿using CSV_Converter.Model.Infrastructure.Database;
+using System.IO;
 using System.Reflection;
+using System.Windows;
 
 namespace CSV_Converter
 {
@@ -19,7 +21,7 @@ namespace CSV_Converter
             }
 
             DatabaseContext = new DatabaseContext();
-            MessageBox.Show("База данных готова к использованию", "Результат", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("База данных готова к использованию", "Результат", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }
